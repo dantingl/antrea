@@ -354,6 +354,8 @@ func (c *Client) restoreIptablesData(podCIDR *net.IPNet, podIPSet string) *bytes
 
 func (c *Client) initIPRoutes() error {
 	if c.networkConfig.TrafficEncapMode.IsNetworkPolicyOnly() {
+		klog.Infof("Ignore to add address to gw")
+                return nil
 		gwLink := util.GetNetLink(c.nodeConfig.GatewayConfig.Name)
 		_, gwIP, _ := net.ParseCIDR(fmt.Sprintf("%s/32", c.nodeConfig.NodeIPAddr.IP.String()))
 		if err := netlink.AddrReplace(gwLink, &netlink.Addr{IPNet: gwIP}); err != nil {

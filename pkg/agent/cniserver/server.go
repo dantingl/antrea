@@ -593,6 +593,7 @@ func (s *CNIServer) Run(stopCh <-chan struct{}) {
 func (s *CNIServer) interceptAdd(cniConfig *CNIConfig) (*cnipb.CniCmdResponse, error) {
 	klog.Infof("CNI Chaining: add")
 	prevResult, response := s.parsePrevResultFromRequest(cniConfig.NetworkConfig)
+	klog.Infof("interceptAdd prevResult: %s", prevResult)
 	if response != nil {
 		klog.Infof("Failed to parse prev result for container %s", cniConfig.ContainerId)
 		return response, nil

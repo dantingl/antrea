@@ -271,6 +271,17 @@ func (pc *podConfigurator) createOVSPort(ovsPortName string, ovsAttachInfo map[s
 	}
 	if err != nil {
 		klog.Errorf("Failed to add OVS port %s, remove from local cache: %v", ovsPortName, err)
+		ports, err := pc.ovsBridgeClient.GetPortList()
+		if err != nil {
+			klog.Errorf("Failed to get port list")
+			return "", err
+		}
+		for _, port := range ports {
+			if port.Name == ovsPortName {
+				klog.Infof("Found OVS port %s UUID %s", ovsPortName, port.UUID)
+				return port.UUID, nil
+			}
+		}
 		return "", err
 	} else {
 		return portUUID, nil
@@ -455,26 +466,27 @@ func (pc *podConfigurator) reconcile(pods []corev1.Pod, containerAccess *contain
 func (pc *podConfigurator) connectInterfaceToOVSCommon(ovsPortName string, containerConfig *interfacestore.InterfaceConfig) error {
 	// create OVS Port and add attach container configuration into external_ids
 	containerID := containerConfig.ContainerID
-	klog.V(2).Infof("Adding OVS port %s for container %s", ovsPortName, containerID)
+	klog.Infof("Adding OVS port %s for container %s", ovsPortName, containerID)
 	ovsAttachInfo := BuildOVSPortExternalIDs(containerConfig)
 	portUUID, err := pc.createOVSPort(ovsPortName, ovsAttachInfo)
 	if err != nil {
 		return fmt.Errorf("failed to add OVS port for container %s: %v", containerID, err)
 	}
 	// Remove OVS port if any failure occurs in later manipulation.
-	defer func() {
-		if err != nil {
-			_ = pc.ovsBridgeClient.DeletePort(portUUID)
-		}
-	}()
+//	defer func() {
+//		if err != nil {
+//			_ = pc.ovsBridgeClient.DeletePort(portUUID)
+//		}
+//	}()
 
 	// GetOFPort will wait for up to 1 second for OVSDB to report the OFPort number.
 	ofPort, err := pc.ovsBridgeClient.GetOFPort(ovsPortName)
 	if err != nil {
 		return fmt.Errorf("failed to get of_port of OVS port %s: %v", ovsPortName, err)
 	}
+	klog.Infof("Get %s ofPort %s", ovsPortName, ofPort)
 
-	klog.V(2).Infof("Setting up Openflow entries for container %s", containerID)
+	klog.Infof("Setting up Openflow entries for container %s", containerID)
 	err = pc.ofClient.InstallPodFlows(ovsPortName, containerConfig.IPs, containerConfig.MAC, uint32(ofPort))
 	if err != nil {
 		return fmt.Errorf("failed to add Openflow entries for container %s: %v", containerID, err)
